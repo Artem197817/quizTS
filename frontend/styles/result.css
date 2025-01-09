@@ -1,0 +1,40 @@
+.result{
+    padding-top: 140px;
+    padding-bottom: 20px;
+    text-align: center;
+}
+.result .container{
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    position: relative;
+}
+.result-image-question{
+    position: absolute;
+    top: 80px;
+    z-index: -1;
+}
+.result-title{
+    max-width: 588px;
+    margin-bottom: 60px;
+}
+.result-scope{
+    background-image: url("../images/result-image.png");
+    background-size: cover;
+    background-position: center;
+    width: 480px;
+    height: 388px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 158px;
+    font-weight: 600;
+    line-height: 189px;
+    text-align: center;
+    color: white;
+
+}
+.answer-link-block{
+    max-width: 1200px;
+    margin: 80px auto 0 auto;
+}
