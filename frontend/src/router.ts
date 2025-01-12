@@ -5,6 +5,7 @@ import {Result} from "./components/result";
 import {Answer} from "./components/answer";
 import {Auth} from "./services/auth";
 import {TypeRoute} from "./types/type.route";
+import { UserInfo } from "./types/type.userInfo";
 
 export class Router{
     private contentElement: HTMLElement | null;
@@ -117,8 +118,8 @@ public async openRoute():Promise<void> {
         this.linkStyles.setAttribute('href', newRoute.styles);
         this.pageTitle.innerText = newRoute.title;
 
-        const userInfo = Auth.getUserInfo()
-        const accessToken: string = localStorage.getItem(Auth.accessTokenKey);
+        const userInfo:UserInfo|null = Auth.getUserInfo()
+        const accessToken: string|null = localStorage.getItem(Auth.accessTokenKey);
 
         if (accessToken && userInfo) {
 

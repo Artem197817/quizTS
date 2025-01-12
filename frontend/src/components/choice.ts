@@ -1,80 +1,83 @@
-import {UrlManager} from '../utils/url-manager.js';
 import {CustomHttp} from "../services/custom-http";
 import config from "../../config/config";
 import {Auth} from "../services/auth";
+import {QuizListType} from '../types/quiz-list.type';
+import {TestResultType} from '../types/test-result.type';
+import {UserInfo} from '../types/type.userInfo';
+import {DefaultResponseType} from '../types/default-response.type';
 
 export class Choice {
 
+    private quizzes: QuizListType[] = []
+    private testResults: TestResultType[] | null = null
+
 
     constructor() {
-        this.quizzes = []
-        this.testResults = null
+
         this.init();
 
     }
 
-    async init() {
+    private async init(): Promise<void> {
         try {
-            const result = await CustomHttp.request(config.host + '/tests');
-            if (result) {
-                if (result.error) {
-                    throw new Error(result.error);
-                }
-                this.quizzes = result;
+            this.quizzes = await CustomHttp.request(config.host + '/tests');
 
-            }
         } catch (error) {
-           return  console.log(error);
+            console.log(error);
+            return;
         }
 
-        const userInfo = Auth.getUserInfo();
+        const userInfo: UserInfo | null = Auth.getUserInfo();
         if (userInfo) {
             try {
-                const result  = await CustomHttp.request(config.host + '/tests/results?userId=' + userInfo.userId);
+                const result: DefaultResponseType | TestResultType[] = await CustomHttp.request(config.host + '/tests/results?userId=' + userInfo.userId);
 
                 if (result) {
-                    if (result.error) {
-                        throw new Error(result.error);
+                    if ((result as DefaultResponseType).error !== undefined) {
+                        throw new Error((result as DefaultResponseType).message);
                     }
-                    this.testResults = result;
+                    this.testResults = result as TestResultType[];
                 }
             } catch (error) {
-               return  console.log(error);
+                console.log(error);
+                return;
             }
         }
         this.processQuizzes();
     }
 
-    processQuizzes() {
-        if (this.quizzes && this.quizzes.length > 0) {
-            const choiceOptionsElement = document.getElementById('choice-options');
+    private processQuizzes(): void {
+        const choiceOptionsElement: HTMLElement | null = document.getElementById('choice-options');
+
+        if (this.quizzes && this.quizzes.length > 0 && choiceOptionsElement) {
 
             this.quizzes.forEach(quiz => {
-                const that = this;
-                const choiceOptionElement = document.createElement('div');
+                const that: Choice = this;
+                const choiceOptionElement: HTMLElement | null = document.createElement('div');
                 choiceOptionElement.className = 'choice-option';
-                choiceOptionElement.setAttribute('data-id', quiz.id);
-                choiceOptionElement.onclick = function () {
-                    that.choiceQuiz(this);
+                choiceOptionElement.setAttribute('data-id', quiz.id.toString());
+                choiceOptionElement.onclick = function (): void {
+                    that.choiceQuiz(<HTMLElement>this);
                 }
 
-                const choiceOptionTextElement = document.createElement('div');
+                const choiceOptionTextElement: HTMLElement | null = document.createElement('div');
                 choiceOptionTextElement.className = 'choice-option-text';
                 choiceOptionTextElement.innerText = quiz.name;
 
-                const choiceOptionArrowElement = document.createElement('div');
+                const choiceOptionArrowElement: HTMLElement | null = document.createElement('div');
                 choiceOptionArrowElement.className = 'choice-option-arrow';
 
-                const result = this.testResults.find(elem => elem.testId === quiz.id);
+                if (this.testResults) {
+                    const result: TestResultType | undefined = this.testResults.find(elem => elem.testId === quiz.id);
 
-                if(result){
-                    const choiceOptionResultElement = document.createElement('div');
-                    choiceOptionResultElement.className = 'choice-option-result';
-                    choiceOptionResultElement.innerHTML = '<div>Результаты</div><div> '+ result.score + '/' + result.total + '</div>';
-                    choiceOptionElement.appendChild(choiceOptionResultElement);
+                    if (result) {
+                        const choiceOptionResultElement: HTMLElement | null = document.createElement('div');
+                        choiceOptionResultElement.className = 'choice-option-result';
+                        choiceOptionResultElement.innerHTML = '<div>Результаты</div><div> ' + result.score + '/' + result.total + '</div>';
+                        choiceOptionElement.appendChild(choiceOptionResultElement);
+                    }
                 }
-
-                const choiceOptionImageElement = document.createElement('img');
+                const choiceOptionImageElement: HTMLElement = document.createElement('img');
                 choiceOptionImageElement.setAttribute('src', 'images/arrow.png');
                 choiceOptionImageElement.setAttribute('alt', 'arrow.png');
 
@@ -87,8 +90,8 @@ export class Choice {
         }
     }
 
-    choiceQuiz(element) {
-        const dataId = element.getAttribute('data-id');
+    private choiceQuiz(element: HTMLElement): void {
+        const dataId: string | null = element.getAttribute('data-id');
         if (dataId) {
             location.href = '#/test?id=' + dataId;
         }
