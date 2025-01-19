@@ -5,7 +5,7 @@ import {SignupResponseType} from "../types/signup-response.type";
 import {LogoutResponseType} from "../types/logout-response.type";
 
 export class Form {
-    readonly elementAgree: HTMLInputElement | null;
+    readonly elementAgree: HTMLInputElement | null = null;
     private processElement: HTMLElement | null = null;
     readonly page: "login" | "signUp";
     private fields: FormFields[] = [];
@@ -113,12 +113,13 @@ export class Form {
                 return isValid;
             }
         }
+        return false;
     }
 
    private async processForm():Promise<void> {
 
 
-        if (this.validateForm) {
+        if (this.validateForm()) {
 
             const email:string|undefined = this.fields.find(item => item.name === 'email')?.element?.value;
             const password:string|undefined  = this.fields.find(item => item.name === 'password')?.element?.value;

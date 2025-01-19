@@ -4,9 +4,11 @@ import config from "../../config/config";
 import {Auth} from "../services/auth";
 import {QuizListType} from "../types/quiz-list.type";
 import {QueryParamsType} from "../types/query-params.type";
-import {QuizType} from "../types/quiz.type";
+import {QuestionType, QuizAnswerType, QuizType} from "../types/quiz.type";
 import {DefaultResponseType} from "../types/default-response.type";
 import {UserResultType} from "../types/user-result.type";
+import { ActionTestType } from "../types/action-test.type";
+import { UserInfo } from "../types/type.userInfo";
 
 export class Test {
 
@@ -34,10 +36,10 @@ export class Test {
         this.progresBarElement = null;
         this.passLinkElement = null;
         this.routesParam = UrlManager.getQueryParam();
-        this.init();
+        this.init().then();
     }
 
-   private async init():Promise<void> {
+   private async init(): Promise<void> {
         if (this.routesParam.id) {
             try {
                 const result: QuizType | DefaultResponseType = await CustomHttp.request(config.host + '/tests/' + this.routesParam.id);
@@ -61,16 +63,17 @@ export class Test {
         this.testTitleElement = document.getElementById('title');
         this.testOptionsElement = document.getElementById('options');
         this.nextButtonElement = document.getElementById('next');
+        const that = this;
         if (this.nextButtonElement) {
-            this.nextButtonElement.onclick = this.move.bind(this, 'next')
+            this.nextButtonElement.onclick = this.move.bind(this, ActionTestType.next)
         }
         this.passButtonElement = document.getElementById('pass');
         if (this.passButtonElement) {
-            this.passButtonElement.onclick = this.move.bind(this, `pass`)
+            this.passButtonElement.onclick = this.move.bind(this, ActionTestType.pass)
         }
         this.prevButtonElement = document.getElementById('prev');
         if (this.prevButtonElement) {
-            this.prevButtonElement.onclick = this.move.bind(this, 'prev')
+            this.prevButtonElement.onclick = this.move.bind(this, ActionTestType.prev)
         }
         const preTitleElement:HTMLElement | null = document.getElementById('pre-title');
         if (preTitleElement) {
@@ -85,6 +88,7 @@ export class Test {
 
         const timerElement:HTMLElement | null = document.getElementById('timer');
         if (timerElement) {
+            const that:Test = this;
             let seconds:number = 59;
 
             this.interval = window.setInterval(function () {
@@ -93,8 +97,8 @@ export class Test {
                 timerElement.innerText = seconds.toString();
 
                 if (seconds <= 0) {
-                    clearInterval(this.interval);
-                    this.complete();
+                    clearInterval(that.interval);
+                    that.complete();
                 }
             }.bind(this), 1000);
         }
@@ -102,14 +106,14 @@ export class Test {
     }
 
    private prepareProgressBar():void {
-
+            if (!this.quiz) return;
         for (let i = 0; i < this.quiz.questions.length; i++) {
-            const itemElement:HTMLElement = document.createElement('div')
+            const itemElement:HTMLElement| null = document.createElement('div')
             itemElement.className = 'progress-bar-item ' + (i === 0 ? 'active' : '');
 
-            const circleElement:HTMLElement = document.createElement('div');
+            const circleElement:HTMLElement | null = document.createElement('div');
             circleElement.className = 'progress-bar-item-circle';
-            const textElement:HTMLElement = document.createElement('div');
+            const textElement:HTMLElement | null = document.createElement('div');
             textElement.className = 'progress-bar-item-text';
             textElement.innerText = 'Вопрос' + (i + 1);
 
@@ -124,25 +128,29 @@ export class Test {
     }
 
    private showQuestion():void {
+        if(!this.quiz) return;
         if(this.testTitleElement && this.passLinkElement && this.testOptionsElement){
-        const activeQuestion = this.quiz.questions[this.currentQuestionIndex - 1];
-        const chosenOption = this.userResult.find(item => item.questionId === activeQuestion.id);
-        this.testTitleElement.innerHTML = '<span>Вопрос ' + this.currentQuestionIndex
+        const activeQuestion: QuestionType = this.quiz.questions[this.currentQuestionIndex - 1];
+        const chosenOption: UserResultType | undefined = this.userResult.find(item => item.questionId === activeQuestion.id);
+        if (this.testTitleElement){
+            this.testTitleElement.innerHTML = '<span>Вопрос ' + this.currentQuestionIndex
             + ': </span> ' + activeQuestion.question;
+        }
+        
 
         this.passLinkElement.classList.remove('disabled-link')
         this.testOptionsElement.innerHTML = '';
-        const that = this;
-        activeQuestion.answers.forEach((answer) => {
-            const testOptionElement = document.createElement('div');
+        const that: Test = this;
+        activeQuestion.answers.forEach((answer: QuizAnswerType) => {
+            const testOptionElement: HTMLElement = document.createElement('div');
             testOptionElement.className = 'test-question-option';
             const inputId: string = 'answer-' + answer.id;
-            const inputElement = document.createElement('input');
+            const inputElement: HTMLInputElement = document.createElement('input');
             inputElement.className = 'option-answer'
             inputElement.setAttribute('id', inputId);
             inputElement.setAttribute('type', 'radio');
             inputElement.setAttribute('name', 'answer');
-            inputElement.setAttribute('value', answer.id);
+            inputElement.setAttribute('value', answer.id.toString());
             if (chosenOption && chosenOption.chosenAnswerId === answer.id) {
                 inputElement.setAttribute('checked', 'checked')
             }
@@ -151,18 +159,22 @@ export class Test {
                 that.chooseAnswer();
             }
 
-            const inputLabelElement = document.createElement('label');
+            const inputLabelElement: HTMLElement = document.createElement('label');
             inputLabelElement.setAttribute('for', inputId);
             inputLabelElement.innerText = answer.answer;
 
             testOptionElement.appendChild(inputElement);
             testOptionElement.appendChild(inputLabelElement);
 
-            this.testOptionsElement.appendChild(testOptionElement);
+            if(this.testOptionsElement){
+                this.testOptionsElement.appendChild(testOptionElement);
+            }
+           
         });
-        |}
+        
 
         if(this.nextButtonElement && this.prevButtonElement){
+
             if (chosenOption && chosenOption.chosenAnswerId) {
                 this.nextButtonElement.removeAttribute('disabled')
             } else {
@@ -180,25 +192,28 @@ export class Test {
                 this.prevButtonElement.setAttribute('disabled', 'disabled');
             }
         }
-
+    }
 
     }
 
-    chooseAnswer() {
+   private chooseAnswer(): void {
+    if(this.nextButtonElement && this.passLinkElement){
         this.nextButtonElement.removeAttribute('disabled');
         this.passLinkElement.classList.add('disabled-link');
     }
+    }
 
-    move(action: string) {
-        const activeQuestion = this.quiz.questions[this.currentQuestionIndex - 1];
-        const choosenAnswer = Array.from(document.getElementsByClassName('option-answer')).find(element => {
-            return element.checked;
-        });
+   private move(action: ActionTestType): void {
+        if(!this.quiz) return;
+        const activeQuestion: QuestionType = this.quiz.questions[this.currentQuestionIndex - 1];
+        const choosenAnswer: HTMLInputElement | undefined = Array.from(document.getElementsByClassName('option-answer')).find(element => {
+            return (element as HTMLInputElement).checked;
+        }) as HTMLInputElement;
 
-        let chosenAnswerId = null;
+        let chosenAnswerId: number | null = null;
         if (!choosenAnswer) {
             chosenAnswerId = -1;
-            const existingResult = this.userResult.find(item => {
+            const existingResult: UserResultType | undefined = this.userResult.find(item => {
                 return item.questionId === activeQuestion.id;
             })
             if (existingResult) {
@@ -214,7 +229,7 @@ export class Test {
         if (choosenAnswer && choosenAnswer.value) {
             chosenAnswerId = Number(choosenAnswer.value);
 
-            const existingResult = this.userResult.find(item => {
+            const existingResult: UserResultType | undefined = this.userResult.find(item => {
                 return item.questionId === activeQuestion.id;
             })
             if (existingResult) {
@@ -227,7 +242,7 @@ export class Test {
             }
         }
 
-        if (action === 'next' || action === 'pass') {
+        if (action === ActionTestType.next || action === ActionTestType.pass) {
             this.currentQuestionIndex++;
         } else {
             this.currentQuestionIndex--;
@@ -238,8 +253,9 @@ export class Test {
             return
         }
 
-        Array.from(this.progresBarElement.children).forEach((item, index) => {
-            const currentIndex = index + 1;
+        if(this.progresBarElement){
+        Array.from(this.progresBarElement.children).forEach((item: Element, index: number) => {
+            const currentIndex: number = index + 1;
             item.classList.remove('active');
             item.classList.remove('complete');
 
@@ -250,27 +266,28 @@ export class Test {
             }
 
         })
-
+    }
         this.showQuestion();
     }
-
-    async complete() {
-        const userInfo = Auth.getUserInfo();
-        if (!userInfo) {
+   
+   private async complete(): Promise<void> {
+        const userInfo: UserInfo | null = Auth.getUserInfo();
+        if (!userInfo || !userInfo.userId) {
             location.href = '#/'
+            return;
         }
 
         try {
 
-            const result = await CustomHttp.request(config.host + '/tests/' + this.routesParam.id
+            const result: DefaultResponseType  = await CustomHttp.request(config.host + '/tests/' + this.routesParam.id
                 + '/pass', 'POST', {
                 userId: userInfo.userId,
                 results: this.userResult,
             })
 
             if (result) {
-                if (result.error) {
-                    throw new Error(result.error);
+                if ((result as DefaultResponseType).error !== undefined) {
+                    throw new Error((result as DefaultResponseType).message);
                 }
                 location.href = '#/result?id=' + this.routesParam.id
             }
@@ -278,7 +295,7 @@ export class Test {
         } catch (e) {
             console.log(e)
         }
-
+    
     }
 }
 

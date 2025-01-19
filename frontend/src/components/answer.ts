@@ -1,74 +1,96 @@
 import {Auth} from "../services/auth";
 import {CustomHttp} from "../services/custom-http";
 import config from "../../config/config";
+import {UserInfo} from "../types/type.userInfo";
+import {DefaultResponseType} from "../types/default-response.type";
+import {TestData} from "../types/test-data.type";
 
 export class Answer {
+    private quiz: TestData | null = null;
+    readonly userInfo: UserInfo | null = null;
+    readonly testId: string | null = null;
 
     constructor() {
-        this.quiz = null;
         this.userInfo = Auth.getUserInfo();
         this.testId = sessionStorage.getItem("testId");
-        document.getElementById('result-callback')
-            .setAttribute('href', '#/result?id=' + this.testId)
+
+        const resultCallbackElement: HTMLElement | null = document.getElementById('result-callback');
+
+        if (resultCallbackElement) {
+            resultCallbackElement.setAttribute('href', '#/result?id=' + this.testId)
+        }
+
         if (this.userInfo && this.testId) {
 
-            this.init();
+            this.init().then();
 
 
         } else {
             location.href = '#/'
+            return;
         }
     }
 
-    async init() {
+    private async init(): Promise<void> {
         try {
-            const result = await CustomHttp.request(config.host + '/tests/'
-                + this.testId + '/result/details?userId=' + this.userInfo.userId);
+            if (this.userInfo && this.testId) {
+                const result: TestData | DefaultResponseType = await CustomHttp.request(config.host + '/tests/'
+                    + this.testId + '/result/details?userId=' + this.userInfo.userId);
 
-            if (result) {
-                if (result.error) {
-                    throw new Error(result.error);
+                if (result) {
+                    if ((result as DefaultResponseType).error) {
+                        throw new Error((result as DefaultResponseType).message);
+                    }
+                    this.quiz = result as TestData;
+
+                        this.showInfo();
+                        this.showAnswer()
+
+
                 }
-                this.quiz = result;
-                console.log(this.quiz.test.name);
-                this.showInfo();
-                this.showAnswer()
             }
         } catch (error) {
-            return console.log(error);
+            console.log(error);
+            return
         }
+
+
     }
 
     showInfo() {
-        document.getElementById('pre-title').innerText = this.quiz.test.name;
-        document.getElementById('tested').innerText = this.userInfo.fullName
-            + ', ' + this.userInfo.email;
+        const preTitle: HTMLElement | null = document.getElementById('pre-title');
+        const testedElement: HTMLElement | null = document.getElementById('tested');
+        if (preTitle && testedElement && this.quiz && this.userInfo) {
 
+            preTitle.innerText = this.quiz.test.name;
+            testedElement.innerText = this.userInfo.fullName
+                + ', ' + this.userInfo.email;
+        }
     }
 
     showAnswer() {
-        let index = 0;
+        let index: number = 0;
 
 
-        const answerBlock = document.getElementById('answer-block');
-
+        const answerBlock: HTMLElement | null = document.getElementById('answer-block');
+        if (this.quiz)
         this.quiz.test.questions.forEach(question => {
-            const answerQuestionElement = document.createElement('div');
+            const answerQuestionElement: HTMLElement = document.createElement('div');
             answerQuestionElement.className = 'answer-question';
 
-            const answerTitleElement = document.createElement('h2');
+            const answerTitleElement: HTMLElement = document.createElement('h2');
             answerTitleElement.className = 'answer-title';
             answerTitleElement.innerHTML = '<span>Вопрос ' + (index + 1)
                 + ': </span> ' + question.question;
 
-            const answersElement = document.createElement('div');
+            const answersElement: HTMLElement = document.createElement('div');
             answersElement.className = 'answer-answers';
 
 
             answerQuestionElement.appendChild(answerTitleElement);
 
             question.answers.forEach((answer) => {
-                const answerElement = document.createElement('div');
+                const answerElement: HTMLElement = document.createElement('div');
                 answerElement.className = 'answer-answer';
                 answerElement.innerText = answer.answer;
 
@@ -88,7 +110,10 @@ export class Answer {
             });
 
             answerQuestionElement.appendChild(answersElement);
-            answerBlock.appendChild(answerQuestionElement);
+            if (answerBlock){
+                answerBlock.appendChild(answerQuestionElement);
+            }
+
             index++;
         });
 
